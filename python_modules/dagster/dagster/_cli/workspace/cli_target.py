@@ -420,7 +420,7 @@ def python_job_target_click_options() -> Sequence[ClickOption]:
     ]
 
 
-def target_with_config_option(command_name: str) -> ClickOption:
+def target_with_config_option(group: str, command_name: str, selector: str) -> ClickOption:
     return click.option(
         "-c",
         "--config",
@@ -433,19 +433,23 @@ def target_with_config_option(command_name: str) -> ClickOption:
             "files at the key-level granularity. If the file is a pattern then you must "
             "enclose it in double quotes"
             "\n\nExample: "
-            f"dagster job {command_name} -f hello_world.py -j pandas_hello_world "
+            f"dagster {group} {command_name} -f hello_world.py {selector} pandas_hello_world "
             '-c "pandas_hello_world/*.yaml"'
             "\n\nYou can also specify multiple files:"
             "\n\nExample: "
-            f"dagster job {command_name} -f hello_world.py -j pandas_hello_world "
-            "-c pandas_hello_world/ops.yaml -c pandas_hello_world/env.yaml"
+            f"dagster {group} {command_name} -f hello_world.py {selector} pandas_hello_world "
         ),
     )
 
 
-def python_job_config_argument(command_name: str) -> Callable[[T_Callable], T_Callable]:
+def python_config_argument(group: str, command_name: str) -> Callable[[T_Callable], T_Callable]:
+    if group == "job":
+        selector = "-j"
+    else:
+        selector = "--select"
+
     def wrap(f: T_Callable) -> T_Callable:
-        return target_with_config_option(command_name)(f)
+        return target_with_config_option(group, command_name, selector)(f)
 
     return wrap
 

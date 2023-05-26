@@ -24,7 +24,7 @@ from dagster._cli.workspace.cli_target import (
     get_workspace_from_kwargs,
     job_repository_target_argument,
     job_target_argument,
-    python_job_config_argument,
+    python_config_argument,
     python_job_target_argument,
 )
 from dagster._core.definitions import JobDefinition
@@ -245,7 +245,7 @@ def print_op(
     ),
 )
 @python_job_target_argument
-@python_job_config_argument("list_versions")
+@python_config_argument("job", "list_versions")
 def job_list_versions_command(**kwargs):
     with DagsterInstance.get() as instance:
         execute_list_versions_command(instance, kwargs)
@@ -307,7 +307,7 @@ def add_step_to_table(memoized_plan):
     ),
 )
 @python_job_target_argument
-@python_job_config_argument("execute")
+@python_config_argument("job", "execute")
 @click.option("--tags", type=click.STRING, help="JSON string of tags to use for this job run")
 def job_execute_command(**kwargs: ClickArgValue):
     with capture_interrupts():
@@ -419,7 +419,7 @@ def do_execute_command(
     ),
 )
 @job_target_argument
-@python_job_config_argument("launch")
+@python_config_argument("job", "launch")
 @click.option(
     "--config-json",
     type=click.STRING,
