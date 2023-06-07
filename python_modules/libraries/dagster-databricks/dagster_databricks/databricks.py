@@ -69,7 +69,7 @@ class DatabricksClient:
         warnings.warn(
             (
                 "The `databricks_api.DatabricksAPI` client is deprecated and will be removed in a"
-                " future release."
+                " future release. Please use `DatabricksClient.api_client` instead."
             ),
             DeprecationWarning,
         )
@@ -116,7 +116,7 @@ class DatabricksClient:
             warnings.warn(
                 (
                     "The `databricks_cli.sdk.ApiClient` client is deprecated and will be removed in"
-                    " a future release."
+                    " a future release. Please disable `legacy_api` to use the new Databricks SDK."
                 ),
                 DeprecationWarning,
             )
