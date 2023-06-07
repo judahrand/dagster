@@ -8,8 +8,7 @@ import dagster._check as check
 import dagster_pyspark
 import requests.exceptions
 from dagster._annotations import public
-from databricks.sdk import WorkspaceClient, JobsAPI, DbfsAPI, ClustersAPI
-from databricks.sdk.core import ApiClient, Config
+from databricks.sdk import WorkspaceClient
 
 import dagster_databricks
 
@@ -35,15 +34,16 @@ class DatabricksClient:
         self.host = host
         self.workspace_id = workspace_id
 
-        self.client = WorkspaceClient(
+        self._api_client = WorkspaceClient(
             host=host,
             token=token,
-            config=Config(product="dagster-databricks", product_version=__version__),
+            product="dagster-databricks",
+            product_version=__version__,
         )
 
     @public
     @property
-    def api_client(self) -> ApiClient:
+    def api_client(self) -> WorkspaceClient:
         """Retrieve a reference to the underlying Databricks API client. For more information,
         see the `Databricks Python API <https://docs.databricks.com/dev-tools/python-api.html>`_.
 
@@ -76,7 +76,7 @@ class DatabricksClient:
         Returns:
             ApiClient: The authenticated Databricks API client.
         """
-        return self.client.api_client
+        return self._api_client
 
     def read_file(self, dbfs_path: str, block_size: int = 1024**2) -> bytes:
         """Read a file from DBFS to a **byte string**."""
@@ -85,7 +85,7 @@ class DatabricksClient:
 
         data = b""
         bytes_read = 0
-        dbfs_service = DbfsAPI(self.api_client)
+        dbfs_service = self.api_client.dbfs
 
         jdoc = dbfs_service.read(path=dbfs_path, length=block_size)
         data += base64.b64decode(jdoc.data)
@@ -106,7 +106,7 @@ class DatabricksClient:
         if dbfs_path.startswith("dbfs://"):
             dbfs_path = dbfs_path[7:]
 
-        dbfs_service = DbfsAPI(self.api_client)
+        dbfs_service = self.api_client.dbfs
 
         create_response = dbfs_service.create(path=dbfs_path, overwrite=overwrite)
         handle = create_response.handle
@@ -125,7 +125,7 @@ class DatabricksClient:
         Return a `DatabricksRunState` object. Note that the `result_state`
         attribute may be `None` if the run hasn't yet terminated.
         """
-        run = JobsAPI(self.api_client).get_run(databricks_run_id)
+        run = self.api_client.jobs.get_run(databricks_run_id)
         state = run["state"]
         result_state = (
             DatabricksRunResultState(state.get("result_state"))
@@ -304,19 +304,17 @@ class DatabricksJobRunner:
             "libraries": libraries,
             **task,
         }
-        return JobsAPI(self.client.api_client).submit(**config)["run_id"]
+        return self.client.api_client.jobs.submit(**config)["run_id"]
 
     def retrieve_logs_for_run_id(self, log: logging.Logger, databricks_run_id: int):
         """Retrieve the stdout and stderr logs for a run."""
-        api_client = self.client.api_client
-
-        run = JobsAPI(api_client).get_run(databricks_run_id)
-        cluster = ClustersAPI(api_client).get_cluster(run["cluster_instance"]["cluster_id"])
+        run = self.client.api_client.jobs.get_run(databricks_run_id)
+        cluster = self.client.api_client.clusters.get(run.cluster_instance.cluster_id)
         log_config = cluster.get("cluster_log_conf")
         if log_config is None:
             log.warn(
                 "Logs not configured for cluster {cluster} used for run {run}".format(
-                    cluster=cluster["cluster_id"], run=databricks_run_id
+                    cluster=cluster.cluster_id, run=databricks_run_id
                 )
             )
             return None
@@ -326,8 +324,8 @@ class DatabricksJobRunner:
             return None
         elif "dbfs" in log_config:
             logs_prefix = log_config["dbfs"]["destination"]
-            stdout = self.wait_for_dbfs_logs(log, logs_prefix, cluster["cluster_id"], "stdout")
-            stderr = self.wait_for_dbfs_logs(log, logs_prefix, cluster["cluster_id"], "stderr")
+            stdout = self.wait_for_dbfs_logs(log, logs_prefix, cluster.cluster_id, "stdout")
+            stderr = self.wait_for_dbfs_logs(log, logs_prefix, cluster.cluster_id, "stderr")
             return stdout, stderr
 
     def wait_for_dbfs_logs(
