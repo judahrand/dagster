@@ -26,6 +26,9 @@ class DatabricksClientResource(ConfigurableResource, IAttachDifferentObjectToOpC
             " This is used to log a URL for accessing the job in the Databricks UI."
         ),
     )
+    legacy_api: bool = Field(
+        default=True, description="Whether to use the legacy `databricks_cli` API"
+    )
 
     @classmethod
     def _is_dagster_maintained(cls) -> bool:
@@ -36,6 +39,7 @@ class DatabricksClientResource(ConfigurableResource, IAttachDifferentObjectToOpC
             host=self.host,
             token=self.token,
             workspace_id=self.workspace_id,
+            legacy_api=self.legacy_api,
         )
 
     def get_object_to_set_on_execution_context(self) -> Any:
