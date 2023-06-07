@@ -8,7 +8,7 @@ from dagster import (
     op,
 )
 from dagster._core.definitions.op_definition import OpDefinition
-from databricks_cli.sdk import JobsService
+from databricks.sdk import JobsAPI
 from pydantic import Field
 
 from .databricks import DatabricksClient
@@ -109,7 +109,7 @@ def create_databricks_run_now_op(
         context: OpExecutionContext, config: DatabricksRunNowOpConfig
     ) -> None:
         databricks: DatabricksClient = getattr(context.resources, databricks_resource_key)
-        jobs_service = JobsService(databricks.api_client)
+        jobs_service = JobsAPI(databricks.api_client)
 
         run_id: int = jobs_service.run_now(
             job_id=databricks_job_id,
@@ -222,9 +222,9 @@ def create_databricks_submit_run_op(
         context: OpExecutionContext, config: DatabricksSubmitRunOpConfig
     ) -> None:
         databricks: DatabricksClient = getattr(context.resources, databricks_resource_key)
-        jobs_service = JobsService(databricks.api_client)
+        jobs_service = JobsAPI(databricks.api_client)
 
-        run_id: int = jobs_service.submit_run(**databricks_job_configuration)["run_id"]
+        run_id: int = jobs_service.submit(**databricks_job_configuration)["run_id"]
 
         get_run_response: dict = jobs_service.get_run(run_id=run_id)
 

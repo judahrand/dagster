@@ -167,13 +167,13 @@ def test_local():
     assert result.success
 
 
-@mock.patch("databricks_cli.sdk.JobsService.submit_run")
+@mock.patch("databricks.sdk.JobsAPI.submit")
 @mock.patch("dagster_databricks.databricks.DatabricksClient.read_file")
 @mock.patch("dagster_databricks.databricks.DatabricksClient.put_file")
 @mock.patch("dagster_databricks.DatabricksPySparkStepLauncher.get_step_events")
-@mock.patch("databricks_cli.sdk.JobsService.get_run")
+@mock.patch("databricks.sdk.JobsAPI.get_run")
 @mock.patch("dagster_databricks.databricks.DatabricksClient.get_run_state")
-@mock.patch("databricks_cli.sdk.api_client.ApiClient.perform_query")
+@mock.patch("databricks.sdk.core.ApiClient.do")
 def test_pyspark_databricks(
     mock_perform_query,
     mock_get_run_state,
@@ -225,6 +225,7 @@ def test_pyspark_databricks(
                 "execution": {"config": {"in_process": {}}},
             },
         )
+        print(result)
         assert result.success
         assert mock_perform_query.call_count == 2
         assert mock_get_run.call_count == 1

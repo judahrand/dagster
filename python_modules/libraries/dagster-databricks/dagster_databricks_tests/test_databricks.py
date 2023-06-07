@@ -16,7 +16,7 @@ HOST = "https://uksouth.azuredatabricks.net"
 TOKEN = "super-secret-token"
 
 
-@mock.patch("databricks_cli.sdk.JobsService.submit_run")
+@mock.patch("databricks.sdk.JobsAPI.submit")
 def test_databricks_submit_job_existing_cluster(mock_submit_run, databricks_run_config):
     mock_submit_run.return_value = {"run_id": 1}
 
@@ -46,7 +46,7 @@ def test_databricks_submit_job_existing_cluster(mock_submit_run, databricks_run_
     )
 
 
-@mock.patch("databricks_cli.sdk.JobsService.submit_run")
+@mock.patch("databricks.sdk.JobsAPI.submit")
 def test_databricks_submit_job_new_cluster(mock_submit_run, databricks_run_config):
     mock_submit_run.return_value = {"run_id": 1}
 
@@ -81,8 +81,8 @@ def test_databricks_submit_job_new_cluster(mock_submit_run, databricks_run_confi
 
 def test_databricks_wait_for_run(mocker: MockerFixture):
     context = build_op_context()
-    mock_submit_run = mocker.patch("databricks_cli.sdk.JobsService.submit_run")
-    mock_get_run = mocker.patch("databricks_cli.sdk.JobsService.get_run")
+    mock_submit_run = mocker.patch("databricks.sdk.JobsAPI.submit")
+    mock_get_run = mocker.patch("databricks.sdk.JobsAPI.get_run")
 
     mock_submit_run.return_value = {"run_id": 1}
 
@@ -169,7 +169,4 @@ def test_databricks_wait_for_run(mocker: MockerFixture):
 
 def test_dagster_databricks_user_agent() -> None:
     databricks_client = DatabricksClient(host=HOST, token=TOKEN)
-    assert "dagster-databricks" in databricks_client.api_client.default_headers["user-agent"]
-
-    # Remove this once databricks_api is deprecated
-    assert "dagster-databricks" in databricks_client.client.client.default_headers["user-agent"]
+    assert "dagster-databricks" in databricks_client.client.api_client._user_agent_base

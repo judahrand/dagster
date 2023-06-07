@@ -36,8 +36,7 @@ setup(
     install_requires=[
         f"dagster{pin}",
         f"dagster-pyspark{pin}",
-        "databricks-cli~=0.17",
-        "databricks_api",  # Divest from this library in the future since it is unnecessary indirection.
+        "databricks-sdk",
     ],
     zip_safe=False,
 )
