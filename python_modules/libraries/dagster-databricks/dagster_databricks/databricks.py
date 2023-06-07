@@ -57,7 +57,7 @@ class DatabricksClient:
         # It is no longer supported and should be removed in favour of `databricks-sdk` in the next
         # minor release.
         self._legacy_api_client = databricks_cli.sdk.ApiClient(host=host, token=token)
-        self.__setup_user_agent(self._api_client)
+        self.__setup_user_agent(self._legacy_api_client)
 
     def __setup_user_agent(self, client: databricks_cli.sdk.ApiClient) -> None:
         """Overrides the user agent for the Databricks API client."""
