@@ -80,8 +80,8 @@ def test_databricks_run_now_op(
     databricks_job_configuration: Optional[dict],
     databricks_resource_key: Optional[str],
 ) -> None:
-    mock_run_now = mocker.patch("databricks_cli.sdk.JobsService.run_now")
-    mock_get_run = mocker.patch("databricks_cli.sdk.JobsService.get_run")
+    mock_run_now = mocker.patch("databricks.sdk.JobsAPI.run_now")
+    mock_get_run = mocker.patch("databricks.sdk.JobsAPI.get_run")
     databricks_job_id = 10
 
     mock_run_now.return_value = {"run_id": 1}
@@ -139,8 +139,8 @@ def test_databricks_submit_run_op(
     mocker: MockerFixture,
     databricks_resource_key: Optional[str],
 ) -> None:
-    mock_submit_run = mocker.patch("databricks_cli.sdk.JobsService.submit_run")
-    mock_get_run = mocker.patch("databricks_cli.sdk.JobsService.get_run")
+    mock_submit_run = mocker.patch("databricks.sdk.JobsAPI.submit")
+    mock_get_run = mocker.patch("databricks.sdk.JobsAPI.get_run")
     databricks_job_configuration = {
         "new_cluster": {
             "spark_version": "2.1.0-db3-scala2.11",
