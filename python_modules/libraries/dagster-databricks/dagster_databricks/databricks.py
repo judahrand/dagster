@@ -130,7 +130,7 @@ class DatabricksClient:
 
         data = b""
         bytes_read = 0
-        dbfs_service = self.api_client.dbfs
+        dbfs_service = self._api_client.dbfs
 
         jdoc = dbfs_service.read(path=dbfs_path, length=block_size)
         data += base64.b64decode(jdoc.data)
@@ -151,7 +151,7 @@ class DatabricksClient:
         if dbfs_path.startswith("dbfs://"):
             dbfs_path = dbfs_path[7:]
 
-        dbfs_service = self.api_client.dbfs
+        dbfs_service = self._api_client.dbfs
 
         create_response = dbfs_service.create(path=dbfs_path, overwrite=overwrite)
         handle = create_response.handle
@@ -170,7 +170,7 @@ class DatabricksClient:
         Return a `DatabricksRunState` object. Note that the `result_state`
         attribute may be `None` if the run hasn't yet terminated.
         """
-        run = self.api_client.jobs.get_run(databricks_run_id)
+        run = self._api_client.jobs.get_run(databricks_run_id)
         state = run["state"]
         result_state = (
             DatabricksRunResultState(state.get("result_state"))
@@ -349,12 +349,12 @@ class DatabricksJobRunner:
             "libraries": libraries,
             **task,
         }
-        return self.client.api_client.jobs.submit(**config)["run_id"]
+        return self.client._api_client.jobs.submit(**config)["run_id"]
 
     def retrieve_logs_for_run_id(self, log: logging.Logger, databricks_run_id: int):
         """Retrieve the stdout and stderr logs for a run."""
-        run = self.client.api_client.jobs.get_run(databricks_run_id)
-        cluster = self.client.api_client.clusters.get(run.cluster_instance.cluster_id)
+        run = self.client._api_client.jobs.get_run(databricks_run_id)
+        cluster = self.client._api_client.clusters.get(run.cluster_instance.cluster_id)
         log_config = cluster.get("cluster_log_conf")
         if log_config is None:
             log.warn(
