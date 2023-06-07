@@ -169,4 +169,11 @@ def test_databricks_wait_for_run(mocker: MockerFixture):
 
 def test_dagster_databricks_user_agent() -> None:
     databricks_client = DatabricksClient(host=HOST, token=TOKEN)
-    assert "dagster-databricks" in databricks_client.api_client.config.user_agent
+
+    # TODO: Remove this once databricks_cli is removed
+    assert "dagster-databricks" in databricks_client._legacy_api_client.default_headers["user-agent"]
+
+    # TODO: Remove this once databricks_api is removed
+    assert "dagster-databricks" in databricks_client.client.client.default_headers["user-agent"]
+
+    assert "dagster-databricks" in databricks_client._api_client.config.user_agent
