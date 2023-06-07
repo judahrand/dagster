@@ -19,6 +19,7 @@ from dagster._utils.hosted_user_process import (
     recon_repository_from_origin,
 )
 from dagster._utils.interrupts import capture_interrupts
+from dagster._cli.workspace.cli_target import python_config_argument
 
 from .utils import get_instance_for_service
 
@@ -30,6 +31,7 @@ def asset_cli():
 
 @asset_cli.command(name="materialize", help="Execute a run to materialize a selection of assets")
 @python_origin_target_argument
+@python_config_argument("asset", "materialize")
 @click.option("--select", help="Asset selection to target", required=True)
 @click.option("--partition", help="Asset partition to target", required=False)
 def asset_materialize_command(**kwargs):
