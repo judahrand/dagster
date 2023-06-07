@@ -30,9 +30,7 @@ class DatabricksError(Exception):
 class DatabricksClient:
     """A thin wrapper over the Databricks REST API."""
 
-    def __init__(self, host: str, token: str):
-        self.host = host
-
+    def __init__(self, host: Optional[str], token: Optional[str]):
         self._workspace_client = WorkspaceClient(
             host=host,
             token=token,
@@ -74,6 +72,10 @@ class DatabricksClient:
             WorkspaceClient: The authenticated Databricks SDK Workspace Client.
         """
         return self._workspace_client
+
+    @property
+    def host(self) -> str:
+        return self._api_client.config.host
 
     def read_file(self, dbfs_path: str, block_size: int = 1024**2) -> bytes:
         """Read a file from DBFS to a **byte string**."""

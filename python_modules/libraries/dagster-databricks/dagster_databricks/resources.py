@@ -15,8 +15,14 @@ class DatabricksClientResource(ConfigurableResource, IAttachDifferentObjectToOpC
     op or asset.
     """
 
-    host: str = Field(description="Databricks host, e.g. uksouth.azuredatabricks.com")
-    token: str = Field(description="Databricks access token")
+    host: str = Field(
+        default=None,
+        description="Databricks host, e.g. uksouth.azuredatabricks.com",
+    )
+    token: Optional[str] = Field(
+        default=None,
+        description="Databricks access token",
+    )
 
     def get_client(self) -> DatabricksClient:
         return DatabricksClient(host=self.host, token=self.token)
