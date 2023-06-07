@@ -52,26 +52,24 @@ class DatabricksClient:
         .. code-block:: python
 
             from dagster import op
-            from databricks_cli.jobs.api import JobsApi
-            from databricks_cli.runs.api import RunsApi
+            from databricks.sdk import WorkspaceClient
 
             @op(required_resource_keys={"databricks_client"})
             def op1(context):
                 # Initialize the Databricks Jobs API
-                jobs_client = JobsApi(context.resources.databricks_client.api_client)
-                runs_client = RunsApi(context.resources.databricks_client.api_client)
+                client = context.resources.databricks_client.api_client
 
                 # Example 1: Run a Databricks job with some parameters.
-                jobs_client.run_now(...)
+                client.jobs.run_now(...)
 
                 # Example 2: Trigger a one-time run of a Databricks workload.
-                runs_client.submit_run(...)
+                client.jobs.submit(...)
 
                 # Example 3: Get an existing run.
-                runs_client.get_run(...)
+                client.jobs.get_run(...)
 
                 # Example 4: Cancel a run.
-                runs_client.cancel_run(...)
+                client.jobs.cancel_run(...)
 
         Returns:
             ApiClient: The authenticated Databricks API client.
