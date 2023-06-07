@@ -177,3 +177,11 @@ def test_dagster_databricks_user_agent() -> None:
     assert "dagster-databricks" in databricks_client.client.client.default_headers["user-agent"]
 
     assert "dagster-databricks" in databricks_client._api_client.config.user_agent
+
+
+def test_dagster_databricks_legacy_api_mode() -> None:
+    databricks_client = DatabricksClient(host=HOST, token=TOKEN)
+    assert databricks_client.api_client is databricks_client._legacy_api_client
+
+    databricks_client = DatabricksClient(host=HOST, token=TOKEN, legacy_api=False)
+    assert databricks_client.api_client is databricks_client._api_client
