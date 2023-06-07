@@ -1,4 +1,4 @@
-from typing import Any, Optional
+from typing import Any
 
 from dagster import (
     ConfigurableResource,
@@ -17,21 +17,9 @@ class DatabricksClientResource(ConfigurableResource, IAttachDifferentObjectToOpC
 
     host: str = Field(description="Databricks host, e.g. uksouth.azuredatabricks.com")
     token: str = Field(description="Databricks access token")
-    workspace_id: Optional[str] = Field(
-        default=None,
-        description=(
-            "DEPRECATED: The Databricks workspace ID, as described in"
-            " https://docs.databricks.com/workspace/workspace-details.html#workspace-instance-names-urls-and-ids."
-            " This is no longer used and will be removed in a future release."
-        ),
-    )
 
     def get_client(self) -> DatabricksClient:
-        return DatabricksClient(
-            host=self.host,
-            token=self.token,
-            workspace_id=self.workspace_id,
-        )
+        return DatabricksClient(host=self.host, token=self.token)
 
     def get_object_to_set_on_execution_context(self) -> Any:
         return self.get_client()
