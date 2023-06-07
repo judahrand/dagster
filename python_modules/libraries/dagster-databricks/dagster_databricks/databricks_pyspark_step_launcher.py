@@ -25,7 +25,6 @@ from dagster._core.execution.plan.external_step import (
 from dagster._serdes import deserialize_value
 from dagster._utils.backoff import backoff
 from dagster_pyspark.utils import build_pyspark_zip
-from databricks.sdk import JobsAPI
 from requests import HTTPError
 
 from dagster_databricks import databricks_step_main
@@ -258,7 +257,7 @@ class DatabricksPySparkStepLauncher(StepLauncher):
                 yield from self.step_events_iterator(step_context, step_key, databricks_run_id)
         except:
             # if executon is interrupted before the step is completed, cancel the run
-            self.databricks_runner.client.client.jobs.cancel_run(databricks_run_id)
+            self.databricks_runner.client.api_client.jobs.cancel_run(databricks_run_id)
             raise
         finally:
             self.log_compute_logs(log, run_id, step_key)
@@ -368,7 +367,7 @@ class DatabricksPySparkStepLauncher(StepLauncher):
         # Retrieve run info
         cluster_id = None
         for i in range(1, request_retries + 1):
-            run_info = JobsAPI(self.databricks_runner.client.api_client).get_run(databricks_run_id)
+            run_info = self.databricks_runner.client.api_client.jobs.get_run(databricks_run_id)
             # if a new job cluster is created, the cluster_instance key may not be immediately present in the run response
             try:
                 cluster_id = run_info["cluster_instance"]["cluster_id"]
