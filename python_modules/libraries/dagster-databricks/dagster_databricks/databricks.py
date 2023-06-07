@@ -2,12 +2,15 @@ import base64
 import logging
 import time
 from typing import Any, Mapping, Optional
+import warnings
 
 import dagster
 import dagster._check as check
 import dagster_pyspark
 import requests.exceptions
 from dagster._annotations import public
+import databricks_api
+import databricks_cli.sdk
 from databricks.sdk import WorkspaceClient
 
 import dagster_databricks
@@ -30,9 +33,12 @@ class DatabricksError(Exception):
 class DatabricksClient:
     """A thin wrapper over the Databricks REST API."""
 
-    def __init__(self, host: str, token: str, workspace_id: Optional[str] = None):
+    def __init__(
+        self, host: str, token: str, workspace_id: Optional[str] = None, legacy_api: bool = True
+    ):
         self.host = host
         self.workspace_id = workspace_id
+        self.legacy_api = legacy_api
 
         self._api_client = WorkspaceClient(
             host=host,
@@ -41,9 +47,41 @@ class DatabricksClient:
             product_version=__version__,
         )
 
+        # TODO: This is the old shim client that we were previously using. Arguably this is
+        # confusing for users to use since this is an unofficial wrapper around the documented
+        # Databricks REST API. We should consider removing this in the next minor release.
+        self._client = databricks_api.DatabricksAPI(host=host, token=token)
+        self.__setup_user_agent(self._client.client)
+
+        # TODO: This is the old `databricks_cli` client that was previous recommended by Databricks.
+        # It is no longer supported and should be removed in favour of `databricks-sdk` in the next
+        # minor release.
+        self._legacy_api_client = databricks_cli.sdk.ApiClient(host=host, token=token)
+        self.__setup_user_agent(self._api_client)
+
+    def __setup_user_agent(self, client: databricks_cli.sdk.ApiClient) -> None:
+        """Overrides the user agent for the Databricks API client."""
+        client.default_headers["user-agent"] = f"dagster-databricks/{__version__}"
+
     @public
     @property
-    def api_client(self) -> WorkspaceClient:
+    def client(self) -> databricks_api.DatabricksAPI:
+        warnings.warn(
+            (
+                "The `databricks_api.DatabricksAPI` client is deprecated and will be removed in a"
+                " future release."
+            ),
+            DeprecationWarning,
+        )
+        return self._client
+
+    @client.setter
+    def client(self, value: databricks_api.DatabricksAPI) -> None:
+        self._client = value
+
+    @public
+    @property
+    def api_client(self) -> WorkspaceClient | databricks_cli.sdk.ApiClient:
         """Retrieve a reference to the underlying Databricks API client. For more information,
         see the `Databricks Python API <https://docs.databricks.com/dev-tools/python-api.html>`_.
 
@@ -74,6 +112,15 @@ class DatabricksClient:
         Returns:
             ApiClient: The authenticated Databricks API client.
         """
+        if self.legacy_api:
+            warnings.warn(
+                (
+                    "The `databricks_cli.sdk.ApiClient` client is deprecated and will be removed in"
+                    " a future release."
+                ),
+                DeprecationWarning,
+            )
+            return self._legacy_api_client
         return self._api_client
 
     def read_file(self, dbfs_path: str, block_size: int = 1024**2) -> bytes:
