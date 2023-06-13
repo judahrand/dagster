@@ -8,6 +8,7 @@ from dagster import (
     op,
 )
 from dagster._core.definitions.op_definition import OpDefinition
+from databricks.sdk.service import jobs
 from pydantic import Field
 
 from .databricks import DatabricksClient
@@ -110,16 +111,17 @@ def create_databricks_run_now_op(
         databricks: DatabricksClient = getattr(context.resources, databricks_resource_key)
         jobs_service = databricks.workspace_client.jobs
 
-        run_id: int = jobs_service.run_now(
+        run = jobs_service.run_now(
             job_id=databricks_job_id,
             **(databricks_job_configuration or {}),
-        )["run_id"]
+        )
+        run_id = run.bind()["run_id"]
 
-        get_run_response: dict = jobs_service.get_run(run_id=run_id)
+        get_run_response = jobs_service.get_run(run_id=run_id)
 
         context.log.info(
-            f"Launched databricks job run for '{get_run_response['run_name']}' (`{run_id}`). URL:"
-            f" {get_run_response['run_page_url']}. Waiting to run to complete."
+            f"Launched databricks job run for '{get_run_response.run_name}' (`{run_id}`). URL:"
+            f" {get_run_response.run_page_url}. Waiting to run to complete."
         )
 
         databricks.wait_for_run_to_complete(
@@ -223,13 +225,16 @@ def create_databricks_submit_run_op(
         databricks: DatabricksClient = getattr(context.resources, databricks_resource_key)
         jobs_service = databricks.workspace_client.jobs
 
-        run_id: int = jobs_service.submit(**databricks_job_configuration)["run_id"]
+        run = jobs_service.submit(
+            tasks=[jobs.RunSubmitTaskSettings.from_dict(databricks_job_configuration)],
+        )
+        run_id: int = run.bind()["run_id"]
 
-        get_run_response: dict = jobs_service.get_run(run_id=run_id)
+        get_run_response = jobs_service.get_run(run_id=run_id)
 
         context.log.info(
-            f"Launched databricks job run for '{get_run_response['run_name']}' (`{run_id}`). URL:"
-            f" {get_run_response['run_page_url']}. Waiting to run to complete."
+            f"Launched databricks job run for '{get_run_response.run_name}' (`{run_id}`). URL:"
+            f" {get_run_response.run_page_url}. Waiting to run to complete."
         )
 
         databricks.wait_for_run_to_complete(

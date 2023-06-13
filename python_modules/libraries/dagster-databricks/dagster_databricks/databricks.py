@@ -12,6 +12,7 @@ import requests.exceptions
 from dagster._annotations import deprecated, public
 from dagster._utils.backcompat import deprecation_warning
 from databricks.sdk import WorkspaceClient
+from databricks.sdk.service import jobs
 
 import dagster_databricks
 
@@ -207,15 +208,13 @@ class DatabricksClient:
         attribute may be `None` if the run hasn't yet terminated.
         """
         run = self.workspace_client.jobs.get_run(databricks_run_id)
-        state = run["state"]
+        state = run.state
         result_state = (
-            DatabricksRunResultState(state.get("result_state"))
-            if state.get("result_state")
-            else None
+            DatabricksRunResultState(state.result_state.value) if state.result_state else None
         )
 
         return DatabricksRunState(
-            life_cycle_state=DatabricksRunLifeCycleState(state["life_cycle_state"]),
+            life_cycle_state=DatabricksRunLifeCycleState(state.life_cycle_state.value),
             result_state=result_state,
             state_message=state["state_message"],
         )
@@ -378,14 +377,19 @@ class DatabricksJobRunner:
             "Multiple tasks specified in Databricks run",
         )
 
-        config = {
-            "run_name": run_config.get("run_name"),
-            "new_cluster": new_cluster,
-            "existing_cluster_id": existing_cluster_id,
-            "libraries": libraries,
-            **task,
-        }
-        return self.client.workspace_client.jobs.submit(**config)["run_id"]
+        return self.client.workspace_client.jobs.submit(
+            run_name=run_config.get("run_name"),
+            tasks=[
+                jobs.RunSubmitTaskSettings.from_dict(
+                    {
+                        "new_cluster": new_cluster,
+                        "existing_cluster_id": existing_cluster_id,
+                        "libraries": libraries,
+                        **task,
+                    },
+                )
+            ],
+        ).bind()["run_id"]
 
     def retrieve_logs_for_run_id(self, log: logging.Logger, databricks_run_id: int):
         """Retrieve the stdout and stderr logs for a run."""
