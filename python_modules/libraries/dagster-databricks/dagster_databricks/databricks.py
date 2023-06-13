@@ -2,15 +2,15 @@ import base64
 import logging
 import time
 from typing import Any, Mapping, Optional
-import warnings
 
 import dagster
 import dagster._check as check
 import dagster_pyspark
-import requests.exceptions
-from dagster._annotations import public, deprecated
 import databricks_api
 import databricks_cli.sdk
+import requests.exceptions
+from dagster._annotations import deprecated, public
+from dagster._utils.backcompat import deprecation_warning
 from databricks.sdk import WorkspaceClient
 
 import dagster_databricks
@@ -64,12 +64,10 @@ class DatabricksClient:
     @public
     @property
     def client(self) -> databricks_api.DatabricksAPI:
-        warnings.warn(
-            (
-                "The `databricks_api.DatabricksAPI` client is deprecated and will be removed in a"
-                " future release. Please use `DatabricksClient.workspace_client`."
-            ),
-            DeprecationWarning,
+        deprecation_warning(
+            "`client` property on DatabricksClient",
+            "0.20",
+            "Use `workspace_client` property instead.",
         )
         return self._client
 
@@ -119,12 +117,10 @@ class DatabricksClient:
         Returns:
             ApiClient: The authenticated Databricks API client.
         """
-        warnings.warn(
-            (
-                "The `databricks_cli.sdk.ApiClient` client is deprecated and will be removed in"
-                " a future release. Please use `DatabricksClient.workspace_client`."
-            ),
-            DeprecationWarning,
+        deprecation_warning(
+            "`api_client` property on DatabricksClient",
+            "0.20",
+            "Use `workspace_client` property instead.",
         )
         return self._api_client
 
