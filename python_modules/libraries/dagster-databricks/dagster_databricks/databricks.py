@@ -17,8 +17,6 @@ from databricks.sdk.service import jobs
 import dagster_databricks
 
 from .types import (
-    DatabricksRunLifeCycleState,
-    DatabricksRunResultState,
     DatabricksRunState,
 )
 from .version import __version__
@@ -208,16 +206,7 @@ class DatabricksClient:
         attribute may be `None` if the run hasn't yet terminated.
         """
         run = self.workspace_client.jobs.get_run(databricks_run_id)
-        state = run.state
-        result_state = (
-            DatabricksRunResultState(state.result_state.value) if state.result_state else None
-        )
-
-        return DatabricksRunState(
-            life_cycle_state=DatabricksRunLifeCycleState(state.life_cycle_state.value),
-            result_state=result_state,
-            state_message=state["state_message"],
-        )
+        return DatabricksRunState.from_databricks(run.state)
 
     def poll_run_state(
         self,
