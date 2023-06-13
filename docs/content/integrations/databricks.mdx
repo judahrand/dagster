@@ -42,7 +42,6 @@ databricks_client_instance = databricks_client.configured(
     {
         "host": {"env": "DATABRICKS_HOST"},
         "token": {"env": "DATABRICKS_TOKEN"},
-        "legacy_api: False,  # This is required for backwards compatibility reasons until the `legacy_api` is removed.
     }
 )
 ```
@@ -89,9 +88,9 @@ from dagster import (
 
 @op(required_resource_keys={"databricks"})
 def my_databricks_op(context: OpExecutionContext) -> None:
-    databricks_api_client = context.resources.databricks.api_client
+    databricks_client = context.resources.databricks.workspace_client
 
-    databricks_api_client.dbfs.read(path="/tmp/HelloWorld.txt")
+    databricks_client.dbfs.read(path="/tmp/HelloWorld.txt")
 
 @job(resource_defs={"databricks": databricks_client_instance})
 def my_databricks_job():
@@ -112,9 +111,9 @@ from dagster import (
 
 @asset(required_resource_keys={"databricks"})
 def my_databricks_table(context: OpExecutionContext) -> None:
-    databricks_api_client = context.resources.databricks.api_client
+    databricks_client = context.resources.databricks.workspace_client
 
-    databricks_api_client.jobs.run_now(job_id=DATABRICKS_JOB_ID)
+    databricks_client.jobs.run_now(job_id=DATABRICKS_JOB_ID)
 
 materialize_databricks_table = define_asset_job(
     name="materialize_databricks_table",

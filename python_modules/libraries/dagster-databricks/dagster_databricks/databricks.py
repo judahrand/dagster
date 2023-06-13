@@ -8,7 +8,7 @@ import dagster
 import dagster._check as check
 import dagster_pyspark
 import requests.exceptions
-from dagster._annotations import public
+from dagster._annotations import public, deprecated
 import databricks_api
 import databricks_cli.sdk
 from databricks.sdk import WorkspaceClient
@@ -33,14 +33,11 @@ class DatabricksError(Exception):
 class DatabricksClient:
     """A thin wrapper over the Databricks REST API."""
 
-    def __init__(
-        self, host: str, token: str, workspace_id: Optional[str] = None, legacy_api: bool = True
-    ):
+    def __init__(self, host: str, token: str, workspace_id: Optional[str] = None):
         self.host = host
         self.workspace_id = workspace_id
-        self.legacy_api = legacy_api
 
-        self._api_client = WorkspaceClient(
+        self._workspace_client = WorkspaceClient(
             host=host,
             token=token,
             product="dagster-databricks",
@@ -56,20 +53,21 @@ class DatabricksClient:
         # TODO: This is the old `databricks_cli` client that was previous recommended by Databricks.
         # It is no longer supported and should be removed in favour of `databricks-sdk` in the next
         # minor release.
-        self._legacy_api_client = databricks_cli.sdk.ApiClient(host=host, token=token)
-        self.__setup_user_agent(self._legacy_api_client)
+        self._api_client = databricks_cli.sdk.ApiClient(host=host, token=token)
+        self.__setup_user_agent(self._api_client)
 
     def __setup_user_agent(self, client: databricks_cli.sdk.ApiClient) -> None:
         """Overrides the user agent for the Databricks API client."""
         client.default_headers["user-agent"] = f"dagster-databricks/{__version__}"
 
+    @deprecated
     @public
     @property
     def client(self) -> databricks_api.DatabricksAPI:
         warnings.warn(
             (
                 "The `databricks_api.DatabricksAPI` client is deprecated and will be removed in a"
-                " future release. Please use `DatabricksClient.api_client` instead."
+                " future release. Please use `DatabricksClient.workspace_client`."
             ),
             DeprecationWarning,
         )
@@ -79,11 +77,62 @@ class DatabricksClient:
     def client(self, value: databricks_api.DatabricksAPI) -> None:
         self._client = value
 
+    @deprecated
     @public
     @property
-    def api_client(self) -> WorkspaceClient | databricks_cli.sdk.ApiClient:
+    def api_client(self) -> databricks_cli.sdk.ApiClient:
         """Retrieve a reference to the underlying Databricks API client. For more information,
         see the `Databricks Python API <https://docs.databricks.com/dev-tools/python-api.html>`_.
+
+        **Examples:**
+
+        .. code-block:: python
+
+            from dagster import op
+            from databricks_cli.jobs.api import JobsApi
+            from databricks_cli.runs.api import RunsApi
+            from databricks.sdk import WorkspaceClient
+
+            @op(required_resource_keys={"databricks_client"})
+            def op1(context):
+                # Initialize the Databricks Jobs API
+                jobs_client = JobsApi(context.resources.databricks_client.api_client)
+                runs_client = RunsApi(context.resources.databricks_client.api_client)
+                client = context.resources.databricks_client.api_client
+
+                # Example 1: Run a Databricks job with some parameters.
+                jobs_client.run_now(...)
+                client.jobs.run_now(...)
+
+                # Example 2: Trigger a one-time run of a Databricks workload.
+                runs_client.submit_run(...)
+                client.jobs.submit(...)
+
+                # Example 3: Get an existing run.
+                runs_client.get_run(...)
+                client.jobs.get_run(...)
+
+                # Example 4: Cancel a run.
+                runs_client.cancel_run(...)
+                client.jobs.cancel_run(...)
+
+        Returns:
+            ApiClient: The authenticated Databricks API client.
+        """
+        warnings.warn(
+            (
+                "The `databricks_cli.sdk.ApiClient` client is deprecated and will be removed in"
+                " a future release. Please use `DatabricksClient.workspace_client`."
+            ),
+            DeprecationWarning,
+        )
+        return self._api_client
+
+    @public
+    @property
+    def workspace_client(self) -> WorkspaceClient:
+        """Retrieve a reference to the underlying Databricks Workspace client. For more information,
+        see the `Databricks SDK for Python <https://docs.databricks.com/dev-tools/sdk-python.html>`_.
 
         **Examples:**
 
@@ -110,18 +159,9 @@ class DatabricksClient:
                 client.jobs.cancel_run(...)
 
         Returns:
-            ApiClient: The authenticated Databricks API client.
+            WorkspaceClient: The authenticated Databricks SDK Workspace Client.
         """
-        if self.legacy_api:
-            warnings.warn(
-                (
-                    "The `databricks_cli.sdk.ApiClient` client is deprecated and will be removed in"
-                    " a future release. Please disable `legacy_api` to use the new Databricks SDK."
-                ),
-                DeprecationWarning,
-            )
-            return self._legacy_api_client
-        return self._api_client
+        return self._workspace_client
 
     def read_file(self, dbfs_path: str, block_size: int = 1024**2) -> bytes:
         """Read a file from DBFS to a **byte string**."""
@@ -130,7 +170,7 @@ class DatabricksClient:
 
         data = b""
         bytes_read = 0
-        dbfs_service = self._api_client.dbfs
+        dbfs_service = self.workspace_client.dbfs
 
         jdoc = dbfs_service.read(path=dbfs_path, length=block_size)
         data += base64.b64decode(jdoc.data)
@@ -151,7 +191,7 @@ class DatabricksClient:
         if dbfs_path.startswith("dbfs://"):
             dbfs_path = dbfs_path[7:]
 
-        dbfs_service = self._api_client.dbfs
+        dbfs_service = self.workspace_client.dbfs
 
         create_response = dbfs_service.create(path=dbfs_path, overwrite=overwrite)
         handle = create_response.handle
@@ -170,7 +210,7 @@ class DatabricksClient:
         Return a `DatabricksRunState` object. Note that the `result_state`
         attribute may be `None` if the run hasn't yet terminated.
         """
-        run = self._api_client.jobs.get_run(databricks_run_id)
+        run = self.workspace_client.jobs.get_run(databricks_run_id)
         state = run["state"]
         result_state = (
             DatabricksRunResultState(state.get("result_state"))
@@ -349,12 +389,12 @@ class DatabricksJobRunner:
             "libraries": libraries,
             **task,
         }
-        return self.client._api_client.jobs.submit(**config)["run_id"]
+        return self.client.workspace_client.jobs.submit(**config)["run_id"]
 
     def retrieve_logs_for_run_id(self, log: logging.Logger, databricks_run_id: int):
         """Retrieve the stdout and stderr logs for a run."""
-        run = self.client._api_client.jobs.get_run(databricks_run_id)
-        cluster = self.client._api_client.clusters.get(run.cluster_instance.cluster_id)
+        run = self.client.workspace_client.jobs.get_run(databricks_run_id)
+        cluster = self.client.workspace_client.clusters.get(run.cluster_instance.cluster_id)
         log_config = cluster.get("cluster_log_conf")
         if log_config is None:
             log.warn(

@@ -257,7 +257,7 @@ class DatabricksPySparkStepLauncher(StepLauncher):
                 yield from self.step_events_iterator(step_context, step_key, databricks_run_id)
         except:
             # if executon is interrupted before the step is completed, cancel the run
-            self.databricks_runner.client._api_client.jobs.cancel_run(databricks_run_id)
+            self.databricks_runner.client.workspace_client.jobs.cancel_run(databricks_run_id)
             raise
         finally:
             self.log_compute_logs(log, run_id, step_key)
@@ -367,7 +367,7 @@ class DatabricksPySparkStepLauncher(StepLauncher):
         # Retrieve run info
         cluster_id = None
         for i in range(1, request_retries + 1):
-            run_info = self.databricks_runner.client._api_client.jobs.get_run(databricks_run_id)
+            run_info = self.databricks_runner.client.workspace_client.jobs.get_run(databricks_run_id)
             # if a new job cluster is created, the cluster_instance key may not be immediately present in the run response
             try:
                 cluster_id = run_info["cluster_instance"]["cluster_id"]
