@@ -225,7 +225,6 @@ def test_pyspark_databricks(
                 "execution": {"config": {"in_process": {}}},
             },
         )
-        print(result)
         assert result.success
         assert mock_perform_query.call_count == 2
         assert mock_get_run.call_count == 1
