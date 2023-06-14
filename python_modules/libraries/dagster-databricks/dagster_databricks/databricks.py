@@ -320,8 +320,10 @@ class DatabricksJobRunner:
             else:
                 new_cluster["autoscale"] = cluster_size["autoscale"]
 
-            tags = new_cluster.get("custom_tags", [])
-            tags.append({"key": "__dagster_version", "value": dagster.__version__})
+            tags = new_cluster.get("custom_tags", {})
+            if isinstance(tags, list):
+                tags = {x["key"]: x["value"] for x in tags}
+            tags["__dagster_version"] = dagster.__version__
             new_cluster["custom_tags"] = tags
 
         check.invariant(
