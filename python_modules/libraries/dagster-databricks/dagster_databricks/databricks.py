@@ -1,7 +1,7 @@
 import base64
 import logging
 import time
-from typing import Any, Mapping, Optional
+from typing import Any, Mapping, Optional, cast
 
 import dagster
 import dagster._check as check
@@ -12,7 +12,7 @@ import requests.exceptions
 from dagster._annotations import deprecated, public
 from dagster._utils.backcompat import deprecation_warning
 from databricks.sdk import WorkspaceClient
-from databricks.sdk.service import jobs
+from databricks.sdk.service import compute, jobs
 
 import dagster_databricks
 
@@ -386,7 +386,7 @@ class DatabricksJobRunner:
         """Retrieve the stdout and stderr logs for a run."""
         run = self.client.workspace_client.jobs.get_run(databricks_run_id)
         cluster = self.client.workspace_client.clusters.get(run.cluster_instance.cluster_id)
-        log_config = cluster.get("cluster_log_conf")
+        log_config = cluster.cluster_log_conf
         if log_config is None:
             log.warn(
                 "Logs not configured for cluster {cluster} used for run {run}".format(
@@ -394,12 +394,12 @@ class DatabricksJobRunner:
                 )
             )
             return None
-        if "s3" in log_config:
-            logs_prefix = log_config["s3"]["destination"]
+        if cast(Optional[compute.S3StorageInfo], log_config.s3) is not None:
+            logs_prefix = log_config.s3.destination
             log.warn("Retrieving S3 logs not yet implemented")
             return None
-        elif "dbfs" in log_config:
-            logs_prefix = log_config["dbfs"]["destination"]
+        elif cast(Optional[compute.DbfsStorageInfo], log_config.dbfs) is not None:
+            logs_prefix = log_config.dbfs.destination
             stdout = self.wait_for_dbfs_logs(log, logs_prefix, cluster.cluster_id, "stdout")
             stderr = self.wait_for_dbfs_logs(log, logs_prefix, cluster.cluster_id, "stderr")
             return stdout, stderr

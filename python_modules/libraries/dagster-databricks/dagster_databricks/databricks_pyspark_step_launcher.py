@@ -26,6 +26,7 @@ from dagster._core.execution.plan.external_step import (
 from dagster._serdes import deserialize_value
 from dagster._utils.backoff import backoff
 from dagster_pyspark.utils import build_pyspark_zip
+from databricks.sdk.service import jobs
 from requests import HTTPError
 
 from dagster_databricks import databricks_step_main
@@ -364,17 +365,14 @@ class DatabricksPySparkStepLauncher(StepLauncher):
         return []
 
     def _grant_permissions(self, log, databricks_run_id, request_retries=3):
-        api_client = self.databricks_runner.client.client.client
-
+        client = self.databricks_runner.client.workspace_client
         # Retrieve run info
         cluster_id = None
         for i in range(1, request_retries + 1):
-            run_info = self.databricks_runner.client.workspace_client.jobs.get_run(
-                databricks_run_id
-            )
+            run_info = client.jobs.get_run(databricks_run_id)
             # if a new job cluster is created, the cluster_instance key may not be immediately present in the run response
             try:
-                cluster_id = run_info["cluster_instance"]["cluster_id"]
+                cluster_id = run_info.cluster_instance.cluster_id
                 break
             except:
                 log.warning(
@@ -392,12 +390,10 @@ class DatabricksPySparkStepLauncher(StepLauncher):
         # Update job permissions
         if "job_permissions" in self.permissions:
             job_permissions = self._format_permissions(self.permissions["job_permissions"])
-            job_id = run_info["job_id"]
+            job_id = run_info.job_id
             log.debug(f"Updating job permissions with following json: {job_permissions}")
-            response = api_client.perform_query(
-                method="PATCH", path=f"/permissions/jobs/{job_id}", data=job_permissions
-            )
-            log.info(f"Successfully updated cluster permissions | Response: {response}")
+            client.permissions.update("jobs", job_id, access_control_list=job_permissions)
+            log.info("Successfully updated cluster permissions")
 
         # Update cluster permissions
         if "cluster_permissions" in self.permissions:
@@ -408,21 +404,23 @@ class DatabricksPySparkStepLauncher(StepLauncher):
                 )
             cluster_permissions = self._format_permissions(self.permissions["cluster_permissions"])
             log.debug(f"Updating cluster permissions with following json: {cluster_permissions}")
-            response = api_client.perform_query(
-                method="PATCH",
-                path=f"/permissions/clusters/{cluster_id}",
-                data=cluster_permissions,
+            client.permissions.update(
+                "clusters", cluster_id, access_control_list=cluster_permissions
             )
-            log.info(f"Successfully updated cluster permissions | Response: {response}")
+            log.info("Successfully updated cluster permissions")
 
     def _format_permissions(self, input_permissions):
-        permissions = {"access_control_list": []}
-        for permission_level, accessors in input_permissions.items():
-            for accessor in accessors:
-                permissions["access_control_list"].append(
-                    {**accessor, **{"permission_level": permission_level}}
-                )
-        return permissions
+        access_control_list = []
+        for permission, accessors in input_permissions.items():
+            access_control_list.extend(
+                [
+                    jobs.AccessControlRequest.from_dict(
+                        {"permission_level": permission, **accessor}
+                    )
+                    for accessor in accessors
+                ]
+            )
+        return access_control_list
 
     def _get_databricks_task(self, run_id, step_key):
         """Construct the 'task' parameter to  be submitted to the Databricks API.

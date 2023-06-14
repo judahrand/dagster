@@ -167,6 +167,7 @@ def test_local():
     assert result.success
 
 
+@mock.patch("databricks.sdk.core.Config")
 @mock.patch("databricks.sdk.JobsAPI.submit")
 @mock.patch("dagster_databricks.databricks.DatabricksClient.read_file")
 @mock.patch("dagster_databricks.databricks.DatabricksClient.put_file")
@@ -182,8 +183,11 @@ def test_pyspark_databricks(
     mock_put_file,
     mock_read_file,
     mock_submit_run,
+    mock_config,
 ):
-    mock_submit_run.return_value = {"run_id": 12345}
+    mock_submit_run_response = mock.Mock()
+    mock_submit_run_response.bind.return_value = {"run_id": 12345}
+    mock_submit_run.return_value = mock_submit_run_response
     mock_read_file.return_value = "somefilecontents".encode()
 
     running_state = DatabricksRunState(DatabricksRunLifeCycleState.RUNNING, None, "")
