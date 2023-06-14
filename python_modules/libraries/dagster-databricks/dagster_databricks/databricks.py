@@ -373,7 +373,7 @@ class DatabricksJobRunner:
                     {
                         "new_cluster": new_cluster,
                         "existing_cluster_id": existing_cluster_id,
-                        "libraries": libraries,
+                        "libraries": [jobs.Library.from_dict(lib) for lib in libraries],
                         **task,
                     },
                 )
