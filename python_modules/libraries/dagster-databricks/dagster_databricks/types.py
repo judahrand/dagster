@@ -61,7 +61,11 @@ class DatabricksRunState(NamedTuple):
     @classmethod
     def from_databricks(cls, run_state: jobs.RunState) -> "DatabricksRunState":
         return cls(
-            life_cycle_state=DatabricksRunLifeCycleState(run_state.life_cycle_state.value),
-            result_state=DatabricksRunResultState(run_state.result_state.value),
+            life_cycle_state=DatabricksRunLifeCycleState(run_state.life_cycle_state.value)
+            if run_state.life_cycle_state
+            else None,
+            result_state=DatabricksRunResultState(run_state.result_state.value)
+            if run_state.result_state
+            else None,
             state_message=run_state.state_message,
         )
